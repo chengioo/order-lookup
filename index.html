@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>单号查询转单号</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* 全局样式 */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+    background: linear-gradient(135deg, #eef2f7, #dfe7f2);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 卡片样式 */
+.card {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 18px 45px rgba(0,0,0,.12);
+}
+
+/* 标题和副标题 */
+h2 {
+    margin: 0;
+    text-align: center;
+    color: #1f2937;
+}
+.subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #6b7280;
+    margin: 6px 0 22px;
+}
+
+/* 输入框组 */
+.input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+input[type="text"] {
+    flex: 1;
+    padding: 11px 12px;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    outline: none;
+}
+input[type="text"]:focus {
+    border-color: #4f7cff;
+    box-shadow: 0 0 0 2px rgba(79,124,255,.15);
+}
+input[type="file"] {
+    font-size: 14px;
+}
+
+/* 按钮样式 */
+button {
+    padding: 11px 18px;
+    font-size: 15px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4f7cff, #3f6bf0);
+    color: #fff;
+    cursor: pointer;
+}
+button:hover {
+    opacity: .9;
+}
+
+/* 查询结果样式 */
+#result {
+    margin-top: 22px;
+}
+.result-box {
+    background: #f6f9ff;
+    border-left: 4px solid #4f7cff;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+.result-box p {
+    margin: 6px 0;
+    font-size: 14px;
+}
+.empty {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+}
+.error {
+    color: #b91c1c;
+}
+
+/* 底部说明 */
+.footer {
+    margin-top: 14px;
+    font-size: 12px;
+    text-align: center;
+    color: #9ca3af;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>📦 单号查询系统</h2>
+    <div class="subtitle">上传 Excel 或输入单号进行查询</div>
+
+    <div class="input-group">
+        <input type="file" id="excelFile" accept=".xlsx">
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="orderNo" placeholder="请输入单号" disabled>
+        <button id="searchBtn" disabled>查询</button>
+    </div>
+
+    <div id="result" class="empty">请先上传 Excel 文件</div>
+
+    <div class="footer">数据来源：本地 Excel · 不上传服务器</div>
+</div>
+
+<!-- 引入 xlsx 库 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let records = [];
+
+// Excel 文件读取
+document.getElementById('excelFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const workbook = XLSX.read(evt.target.result, {type:'binary'});
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header:1});
+
+        records = [];
+        for (let i=1; i<jsonData.length; i++) {
+            const row = jsonData[i];
+            if (row[0] && row[1]) {
+                records.push({
+                    order: row[0].toString().trim(),
+                    transfer: row[1].toString().trim()
+                });
+            }
+        }
+
+        document.getElementById('orderNo').disabled = false;
+        document.getElementById('searchBtn').disabled = false;
+        const result = document.getElementById('result');
+        result.className = 'empty';
+        result.innerText = 'Excel 文件加载完成，请输入单号查询';
+    };
+    reader.readAsBinaryString(file);
+});
+
+// 查询函数
+function search() {
+    const input = document.getElementById('orderNo').value.trim();
+    const result = document.getElementById('result');
+    result.innerHTML = '';
+
+    if (!records.length) {
+        result.className = 'empty error';
+        result.innerText = '请先上传 Excel 文件';
+        return;
+    }
+    if (!input) {
+        result.className = 'empty';
+        result.innerText = '请输入单号进行查询';
+        return;
+    }
+
+    const found = records.filter(item => item.order === input);
+
+    if (found.length > 0) {
+        result.className = '';
+        found.forEach(item => {
+            result.innerHTML += `
+                <div class="result-box">
+                    <p><strong>单号：</strong>${item.order}</p>
+                    <p><strong>转单号：</strong>${item.transfer}</p>
+                </div>
+            `;
+        });
+    } else {
+        result.className = 'empty error';
+        result.innerText = '未查询到对应的转单号';
+    }
+}
+
+// 回车查询
+document.getElementById('orderNo').addEventListener('keyup', e => {
+    if (e.key === 'Enter') search();
+});
+document.getElementById('searchBtn').addEventListener('click', search);
+</script>
+
+</body>
+</html>
